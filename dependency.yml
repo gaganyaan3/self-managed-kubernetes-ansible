@@ -1,0 +1,97 @@
+- hosts: control, worker
+  tasks:
+    - name: Add Kubernetes repository
+      yum_repository:
+        name: kubernetes
+        description: Kubernetes repository
+        baseurl: https://pkgs.k8s.io/core:/stable:/v1.33/rpm/
+        gpgkey: https://pkgs.k8s.io/core:/stable:/v1.33/rpm/repodata/repomd.xml.key
+        gpgcheck: yes
+
+    - name: Install containerd
+      yum:
+        name:
+          - containerd
+        state: present
+        update_cache: true
+
+    - name: Create containerd directory
+      file:
+        path: /etc/containerd
+        state: directory
+
+    - name: Add containerd configuration
+      shell: /usr/bin/containerd config default > /etc/containerd/config.toml
+
+    - name: Configuring Systemd cgroup driver for containerd
+      lineinfile:
+        path: /etc/containerd/config.toml
+        regexp: "            SystemdCgroup = false"
+        line: "            SystemdCgroup = true"
+
+    - name: Start and enable containerd
+      service:
+        name: containerd
+        state: started
+        enabled: yes
+
+    - name: Create an crictl.yaml file
+      copy:
+        content: 'runtime-endpoint: unix:///run/containerd/containerd.sock'
+        dest: /etc/crictl.yaml
+        force: no
+
+    - name: Stop and disable Firewalld
+      service:
+        name: firewalld
+        state: stopped
+        enabled: no
+        
+    - name: Ensure br_netfilter is enabled.
+      modprobe:
+        name: br_netfilter
+        state: present
+        persistent: present
+
+    - name: Set ip_forward
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+
+    - name: Disable and trun off swap
+      shell: |
+        swapoff -a
+        swapline=$(cat -n /etc/fstab | grep swap | awk '{print $1}')
+        if [ $(cat /etc/fstab | grep swap | awk '{print substr($0,0,1)}') != "#" ]
+        then
+        sed -i ""$swapline"s/.*/#&/" /etc/fstab
+        fi
+
+    - name: Disable Selinux
+      shell: |
+        setenforce 0
+        sed -i s/^SELINUX=.*$/SELINUX=permissive/ /etc/selinux/config
+
+    - name: install kubelet
+      yum:
+        name: kubelet
+        state: latest
+        update_cache: true
+
+    - name: install kubeadm
+      yum:
+        name: kubeadm
+        state: latest
+
+    - name: start and enable kubelet
+      service:
+        name: kubelet
+        state: started
+        enabled: yes
+
+- hosts: control
+  tasks:
+   - name: install kubectl
+     yum:
+       name: kubectl
+       state: latest
