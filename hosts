@@ -1,0 +1,10 @@
+[control]
+control ansible_host=192.168.122.66 ansible_user=root
+
+[worker]
+knode2 ansible_host=192.168.122.65 ansible_user=root
+knode3 ansible_host=192.168.122.34 ansible_user=root
+
+[worker_ubuntu]
+knode4 ansible_host=192.168.122.158 ansible_user=root
+knode5 ansible_host=192.168.122.159 ansible_user=root
